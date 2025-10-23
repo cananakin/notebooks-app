@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Note;
+use App\Models\NoteBook;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -57,7 +58,6 @@ class NoteController extends Controller
         {
             abort(403);
         }
-
         return view('notes.show', ['note' => $note]);
     }
 
@@ -71,7 +71,9 @@ class NoteController extends Controller
             abort(403);
         }
 
-        return view('notes.edit', ['note'=> $note]);
+        $notebooks = NoteBook::whereBelongsTo(Auth::user())->latest('updated_at')->get();
+
+        return view('notes.edit', ['note'=> $note, 'notebooks' => $notebooks]);
     }
 
     /**
@@ -87,10 +89,11 @@ class NoteController extends Controller
         $note->update([
             'user_id' => Auth::id(),
             'title' => $request->title,
-            'text' => $request->text
+            'text' => $request->text,
+            'note_book_id' => $request->note_book_id,
         ]);
 
-        return to_route('notes.show', ['note' => $note]);
+        return to_route('notes.show', ['note' => $note])->with('success', 'It has been updated successfully');
     }
 
     /**
@@ -102,7 +105,13 @@ class NoteController extends Controller
         {
             abort(403);
         }
-
-        $note->trashed();
+        $note->delete();
+        if($note->trashed())
+        {
+            return to_route('trashed.show', ['note' => $note])->with('success', 'It has been added to trashed notes');
+            //code...
+        } else {
+            return to_route('notes.show', ['note' => $note])->with('error', 'It has been failed');
+        }
     }
 }
